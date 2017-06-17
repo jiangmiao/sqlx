@@ -31,6 +31,7 @@ func TestDB(tt *testing.T) {
 	eq := att.Equal
 	db, err := Open("postgres", "dbname=sqlx_test sslmode=disable")
 	ok(err)
+	defer db.Close()
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(10)
 	var foos []Foo
@@ -63,8 +64,9 @@ func TestDB(tt *testing.T) {
 	_ = eq
 }
 
-func BenchmarkTypeNameField(b *testing.B) {
-	db, _ := Open("postgres", "dbname=test sslmode=disable")
+func BenchmarkSqlx(b *testing.B) {
+	db, _ := Open("postgres", "dbname=sqlx_test sslmode=disable")
+	defer db.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var bars []Bar
@@ -75,7 +77,8 @@ func BenchmarkTypeNameField(b *testing.B) {
 	}
 }
 func BenchmarkRaw(b *testing.B) {
-	db, _ := sql.Open("postgres", "dbname=test sslmode=disable")
+	db, _ := sql.Open("postgres", "dbname=sqlx_test sslmode=disable")
+	defer db.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var bars []Bar
