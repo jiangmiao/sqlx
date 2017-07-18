@@ -27,3 +27,32 @@ func (db *DB) Begin() (*Tx, error) {
 	}
 	return &Tx{tx}, err
 }
+
+func (db *DB) Commit() (err error) {
+	return
+}
+
+func (db *DB) Rollback() (err error) {
+	return
+}
+
+func (db *DB) End(err *error) {
+	return
+}
+
+func (db *DB) Table(tableName string) *Table {
+	return &Table{
+		Name:        tableName,
+		SqlxQueryer: db,
+	}
+}
+func (db *DB) BeginTable(tableName string) (*Table, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Table{
+		Name:        tableName,
+		SqlxQueryer: tx,
+	}, nil
+}

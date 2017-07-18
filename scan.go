@@ -19,7 +19,7 @@ func NewTypeNameField() *TypeNameField {
 	}
 }
 
-func (ob TypeNameField) Get(to Type) map[string]StructField {
+func (ob *TypeNameField) Get(to Type) map[string]StructField {
 	ob.RLock()
 	nameField, ok := ob.Map[to]
 	ob.RUnlock()
@@ -29,7 +29,7 @@ func (ob TypeNameField) Get(to Type) map[string]StructField {
 	return nameField
 }
 
-func (ob TypeNameField) Register(to Type) map[string]StructField {
+func (ob *TypeNameField) Register(to Type) map[string]StructField {
 	ob.Lock()
 	defer ob.Unlock()
 	nameField, found := ob.Map[to]
@@ -51,6 +51,19 @@ var typeNameField = NewTypeNameField()
 
 func register(to Type) map[string]StructField {
 	return typeNameField.Register(to)
+}
+
+func GetInterface(pos interface{}) map[string]StructField {
+	tos := TypeOf(pos).Elem()
+	if tos.Kind() == Slice {
+		return typeNameField.Get(tos.Elem())
+	} else {
+		return typeNameField.Get(tos)
+	}
+}
+
+func Get(to Type) map[string]StructField {
+	return typeNameField.Get(to)
 }
 
 func Scan(rs *sql.Rows, pos interface{}) (err error) {
@@ -86,7 +99,9 @@ func Scan(rs *sql.Rows, pos interface{}) (err error) {
 		pvs[i] = &vs[i]
 	}
 
+	var found = false
 	for rs.Next() {
+		found = true
 		err = rs.Scan(pvs...)
 		if err != nil {
 			return err
@@ -120,6 +135,9 @@ func Scan(rs *sql.Rows, pos interface{}) (err error) {
 			ros = ro
 			break
 		}
+	}
+	if !found {
+		return sql.ErrNoRows
 	}
 	rpos.Elem().Set(ros)
 	return nil

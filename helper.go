@@ -1,5 +1,7 @@
 package sqlx
 
+import "github.com/lib/pq"
+
 func Underscore(v string) string {
 	var n = len(v)
 	if n == 0 {
@@ -19,4 +21,8 @@ func Underscore(v string) string {
 		j++
 	}
 	return string(us[:k])
+}
+
+func Quote(v string) string {
+	return pq.QuoteIdentifier(v)
 }
