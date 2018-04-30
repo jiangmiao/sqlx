@@ -1,6 +1,10 @@
 package sqlx
 
-import "github.com/lib/pq"
+import (
+	"strings"
+
+	"github.com/lib/pq"
+)
 
 func Underscore(v string) string {
 	var n = len(v)
@@ -20,7 +24,7 @@ func Underscore(v string) string {
 		k++
 		j++
 	}
-	return string(us[:k])
+	return strings.ToLower(string(us[:k]))
 }
 
 func Quote(v string) string {

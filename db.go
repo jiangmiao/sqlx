@@ -13,6 +13,8 @@ func Open(driver, source string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(50)
 	return &DB{db}, nil
 }
 

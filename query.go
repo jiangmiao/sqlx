@@ -2,6 +2,7 @@ package sqlx
 
 import (
 	"database/sql"
+	"log"
 )
 
 type Queryer interface {
@@ -15,8 +16,12 @@ type SqlxQueryer interface {
 	End(err *error)
 }
 
+var Debug bool
+
 func query(q Queryer, dest interface{}, cmd string, args ...interface{}) error {
-	// log.Println(cmd, args)
+	if Debug {
+		log.Println(cmd, args)
+	}
 	rows, err := q.Query(cmd, args...)
 	if err != nil {
 		return err

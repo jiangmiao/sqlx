@@ -73,6 +73,11 @@ func TestDB(tt *testing.T) {
 	ok(err)
 	log.Println(bar)
 
+	var baz = Bar{Name: "miao2"}
+	err = b.FindOrCreate(&baz, "Name")
+	ok(err)
+	log.Println(baz)
+
 	_ = ok
 	_ = eq
 }

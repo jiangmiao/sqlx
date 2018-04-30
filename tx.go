@@ -17,3 +17,10 @@ func (tx *Tx) End(err *error) {
 		tx.Commit()
 	}
 }
+
+func (tx *Tx) Table(tableName string) *Table {
+	return &Table{
+		Name:        tableName,
+		SqlxQueryer: tx,
+	}
+}
