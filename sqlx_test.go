@@ -40,7 +40,8 @@ func TestUser(tt *testing.T) {
 	CREATE TABLE sqlx_test(
 		Id Serial PRIMARY KEY,
 		Name Text,
-		Amount Integer NOT NULL DEFAULT 123
+		Amount Integer NOT NULL DEFAULT 123,
+		UNIQUE(Name)
 	);
 	`)
 	ok(err)
@@ -58,9 +59,15 @@ func TestUser(tt *testing.T) {
 	q.MustUpdate(&user, "amount")
 	eq(user.Amount, int64(234))
 
-	rs, err := q.Exec("SELECT 1 FROM sqlx_test WHERE 0 = 0")
-	log.Println(rs)
-	log.Println(rs.LastInsertId())
+	user.Id = 0
+	user.Name = "Miao2"
+	q.MustCreate(&user)
+
+	var users []User
+	q.MustFind(&users, "")
+
+	eq(users[0].Id, int64(1))
+	eq(users[1].Id, int64(2))
 
 	tx.Rollback()
 

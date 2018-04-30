@@ -16,19 +16,6 @@ func ok(err error) {
 	}
 }
 
-type TableNamer interface {
-	TableName() string
-}
-
-func GetTableName(iv interface{}) string {
-	switch v := iv.(type) {
-	case TableNamer:
-		return v.TableName()
-	default:
-		return reflect.ValueOf(iv).Type().Name()
-	}
-}
-
 var Quote = func(t string) string {
 	return strings.ToLower(pq.QuoteIdentifier(t))
 }
@@ -43,7 +30,7 @@ type Q struct {
 	Queryer
 }
 
-func Visit(pv interface{}, cs []string, proc func(f reflect.StructField, v interface{})) {
+func Visit(pv interface{}, cs []string, proc func(c string, v interface{})) {
 	rpv := reflect.ValueOf(pv)
 	rv := rpv.Elem()
 	tv := rv.Type()
@@ -53,7 +40,7 @@ func Visit(pv interface{}, cs []string, proc func(f reflect.StructField, v inter
 		if !ok {
 			log.Fatalf("cannot find %s\n", c)
 		}
-		proc(f, rv.FieldByIndex(f.Index).Interface())
+		proc(c, rv.FieldByIndex(f.Index).Interface())
 	}
 	return
 }
@@ -69,11 +56,14 @@ func (q Q) Query(pvs interface{}, cmd string, args ...interface{}) (err error) {
 }
 
 func (q Q) Find(pvs interface{}, where string, args ...interface{}) error {
-	tv := reflect.ValueOf(pvs).Elem().Type()
-	if tv.Kind() == reflect.Slice {
-		tv = tv.Elem()
+	rpvs := reflect.ValueOf(pvs)
+	rvs := rpvs.Elem()
+	tvs := rvs.Type()
+	tv := tvs
+	if tvs.Kind() == reflect.Slice {
+		tv = tvs.Elem()
 	}
-	tableName := Quote("bw" + tv.Name())
+	tableName := Quote(GetTableName(tv))
 	if where != "" {
 		where = " WHERE " + where
 	}
@@ -84,10 +74,7 @@ func (q Q) Create(pv interface{}) (err error) {
 	cs := []string{}
 	for i, n := 0, tv.NumField(); i < n; i++ {
 		f := tv.Field(i)
-		if f.Name == "Id" {
-			continue
-		}
-		cs = append(cs, f.Name)
+		cs = append(cs, strings.ToLower(f.Name))
 	}
 	return q.CreateEx(pv, cs...)
 }
@@ -96,13 +83,20 @@ func (q Q) CreateEx(pv interface{}, cs ...string) (err error) {
 	fs := []string{}
 	ps := []string{}
 	vs := []interface{}{}
-	Visit(pv, cs, func(f reflect.StructField, v interface{}) {
-		fs = append(fs, Quote(f.Name))
+	Visit(pv, cs, func(c string, v interface{}) {
+		if c == "id" {
+			if v.(int64) != 0 {
+				panic("create id must be zero")
+			}
+			return
+		}
+		fs = append(fs, Quote(c))
 		ps = append(ps, fmt.Sprintf("$%d", len(fs)))
 		vs = append(vs, v)
 	})
+	tv := reflect.TypeOf(pv).Elem()
 	cmd := fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s) RETURNING *",
-		Quote(GetTableName(pv)),
+		Quote(GetTableName(tv)),
 		strings.Join(fs, ","),
 		strings.Join(ps, ","),
 	)
@@ -116,16 +110,14 @@ func (q Q) Update(pv interface{}, cs ...string) (err error) {
 	tv := rv.Type()
 	fs := Load(tv)
 
-	i := 1
 	vs := []interface{}{}
 	ps := []string{}
-	Visit(pv, cs, func(f reflect.StructField, v interface{}) {
-		ps = append(ps, fmt.Sprintf("%s=$%d", Quote(f.Name), i))
+	Visit(pv, cs, func(c string, v interface{}) {
 		vs = append(vs, v)
-		i++
+		ps = append(ps, fmt.Sprintf("%s=$%d", Quote(c), len(vs)))
 	})
 	cmd := fmt.Sprintf("UPDATE %s SET %s WHERE id=%d RETURNING *",
-		Quote(GetTableName(pv)),
+		Quote(GetTableName(tv)),
 		strings.Join(ps, ","),
 		rv.FieldByIndex(fs["id"].Index).Interface().(int64),
 	)
