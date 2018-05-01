@@ -2,58 +2,58 @@ package sqlx
 
 import (
 	"database/sql"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
 )
 
-var mp = sync.Map{}
+// Type - ColumnName - Field
+var tv2cn2f = sync.Map{}
 
-type Fields map[string]reflect.StructField
+// ColumnName - Field
+type CN2F map[string]reflect.StructField
 
-var tableNameMap map[reflect.Type]string
+// Type - TableName
+var tv2tn = make(map[reflect.Type]string)
 
 type TableNamer interface {
 	TableName() string
 }
 
 func GetTableName(tv reflect.Type) string {
-	name, ok := tableNameMap[tv]
-	if ok {
-		return name
-	} else {
-		return strings.ToLower(tv.Name())
+	name, ok := tv2tn[tv]
+	if !ok {
+		panic("cannot find table name " + tv.Name())
 	}
+	return name
 }
 
 // init table info when load
-func Load(tv reflect.Type) Fields {
-	var fields Fields
-	fieldsPtr, ok := mp.Load(tv)
+func Load(tv reflect.Type) CN2F {
+	var cn2f CN2F
+	icn2f, ok := tv2cn2f.Load(tv)
 	if ok {
-		fields = fieldsPtr.(Fields)
+		cn2f = icn2f.(CN2F)
 	} else {
-		log.Println("Register", tv.Name())
-		fields = Fields{}
+		l.Debugln("Register", tv.Name())
+		cn2f = CN2F{}
 		for i, n := 0, tv.NumField(); i < n; i++ {
 			f := tv.Field(i)
-			name := strings.ToLower(f.Name)
-			fields[name] = f
+			cn := strings.ToLower(f.Name)
+			cn2f[cn] = f
 		}
 		switch v := reflect.New(tv).Interface().(type) {
 		case TableNamer:
-			tableNameMap[tv] = v.TableName()
+			tv2tn[tv] = v.TableName()
 		default:
-			tableNameMap[tv] = strings.ToLower(tv.Name())
+			tv2tn[tv] = strings.ToLower(tv.Name())
 		}
-		mp.Store(tv, fields)
+		tv2cn2f.Store(tv, cn2f)
 	}
-	return fields
+	return cn2f
 }
 
 func Scan(pvs interface{}, rows *sql.Rows) (err error) {
-	log.Println("scan")
 	var isSlice bool
 	rpvs := reflect.ValueOf(pvs)
 	rvs := rpvs.Elem()
@@ -69,7 +69,7 @@ func Scan(pvs interface{}, rows *sql.Rows) (err error) {
 		return
 	}
 	tv := tvs.Elem()
-	fields := Load(tv)
+	cn2f := Load(tv)
 	csIdx := make([]*reflect.StructField, len(cs))
 	rs := make([]interface{}, len(cs))
 	prs := make([]interface{}, len(cs))
@@ -77,7 +77,7 @@ func Scan(pvs interface{}, rows *sql.Rows) (err error) {
 		prs[i] = &rs[i]
 	}
 	for i, c := range cs {
-		f, ok := fields[c]
+		f, ok := cn2f[c]
 		if !ok {
 			continue
 		}

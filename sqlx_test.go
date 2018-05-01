@@ -2,17 +2,18 @@ package sqlx
 
 import (
 	"database/sql"
-	"log"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
 
 type User struct {
-	Id     int64
-	Name   string
-	Amount int64
+	Id        int64
+	Name      string
+	CreatedAt time.Time
+	Amount    int64
 }
 
 func (s User) TableName() string {
@@ -26,12 +27,12 @@ func TestUser(tt *testing.T) {
 
 	db, err := sql.Open("postgres", "dbname=test sslmode=disable")
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal(err)
 	}
 
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal(err)
 	}
 
 	q := Q{tx}
@@ -41,6 +42,7 @@ func TestUser(tt *testing.T) {
 		Id Serial PRIMARY KEY,
 		Name Text,
 		Amount Integer NOT NULL DEFAULT 123,
+		CreatedAt Timestamptz NOT NULL DEFAULT now(),
 		UNIQUE(Name)
 	);
 	`)
@@ -50,21 +52,23 @@ func TestUser(tt *testing.T) {
 		Name: "Miao",
 	}
 
-	log.Println("CREATE")
-	q.MustCreateEx(&user, "name")
+	l.Info("CREATE")
+	q.Create(&user, "name")
 	eq(user.Amount, int64(123))
 	eq(user.Id, int64(1))
+	l.Info(user)
 
 	user.Amount = 234
-	q.MustUpdate(&user, "amount")
+	q.Update(&user, "amount")
 	eq(user.Amount, int64(234))
 
 	user.Id = 0
 	user.Name = "Miao2"
-	q.MustCreate(&user)
+	q.Create(&user)
+	eq(user.Amount, int64(234))
 
 	var users []User
-	q.MustFind(&users, "")
+	q.Find(&users, "")
 
 	eq(users[0].Id, int64(1))
 	eq(users[1].Id, int64(2))

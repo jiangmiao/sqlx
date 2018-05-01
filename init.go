@@ -1,7 +1,11 @@
 package sqlx
 
-import "reflect"
+import (
+	"github.com/sirupsen/logrus"
+)
+
+var l = logrus.New()
 
 func init() {
-	tableNameMap = make(map[reflect.Type]string)
+	l.SetLevel(logrus.DebugLevel)
 }
