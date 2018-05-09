@@ -73,6 +73,9 @@ func TestUser(tt *testing.T) {
 	eq(users[0].Id, int64(1))
 	eq(users[1].Id, int64(2))
 
+	eq(q.Has(User{}, "id = 1"), true)
+	eq(q.Has(User{}, "id = 3"), false)
+
 	tx.Rollback()
 
 	_ = ok

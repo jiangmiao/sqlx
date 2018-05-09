@@ -69,6 +69,25 @@ func (q Q) Find(pvs interface{}, where string, args ...interface{}) error {
 	return q.Query(pvs, fmt.Sprintf("SELECT * FROM %s %s", tableName, where), args...)
 }
 
+func (q Q) Has(pv interface{}, where string, args ...interface{}) bool {
+	tv := reflect.Indirect(reflect.ValueOf(pv)).Type()
+	tableName := Quote(GetTableName(tv))
+	if where != "" {
+		where = " WHERE " + where
+	}
+	row := q.QueryRow(fmt.Sprintf("SELECT 1 FROM %s %s LIMIT 1", tableName, where), args...)
+	var one int64
+	err := row.Scan(&one)
+	if err == nil {
+		return true
+	}
+	if err == sql.ErrNoRows {
+		return false
+	}
+	ok(err)
+	return false
+}
+
 func (q Q) Create(pv interface{}, cs ...string) (err error) {
 	fs := []string{}
 	ps := []string{}
